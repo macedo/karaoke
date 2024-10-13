@@ -28,6 +28,6 @@ type AuthorizeInput struct {
 	ClientID     string
 	ResponseType string
 	RedirectURI  string
-	Scope        []string
 	State        string
+	Scope        []string
 }

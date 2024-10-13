@@ -16,9 +16,9 @@ const (
 )
 
 type Client struct {
-	credentialsPath string
-	Credentials     *Credentials
 	HTTPClient      HTTPClient
+	Credentials     *Credentials
+	credentialsPath string
 }
 
 func New(opts ...Option) (*Client, error) {
