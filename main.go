@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/fatih/color"
 	"github.com/macedo/karaoke/internal/config"
 	"github.com/macedo/karaoke/spotify"
 )
@@ -49,4 +51,26 @@ func main() {
 	if err := cli.Authenticate(context.Background()); err != nil {
 		log.Fatal(err)
 	}
+
+	out, _ := cli.PlayingTrack()
+
+	name := out.Item.Name
+	artist := out.Item.Artists[0].Name
+
+	duration := out.Item.DurationMs * int(time.Millisecond)
+	progress := out.ProgressMs * int(time.Millisecond)
+
+	fmt.Println(color.YellowString("%s - %s | %s/%s", name, artist, progress, duration))
+
+	t := time.NewTimer(time.Duration(duration) - time.Duration(progress))
+
+	<-t.C
+
+	time.Sleep(2 * time.Second)
+	out, _ = cli.PlayingTrack()
+
+	name = out.Item.Name
+	artist = out.Item.Artists[0].Name
+
+	fmt.Println(color.YellowString("%s - %s | %s", name, artist, progress))
 }

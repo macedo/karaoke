@@ -101,6 +101,10 @@ func (h *OAuthHandler) AuthorizationCodeFlow(ctx context.Context) (*oauth2.Token
 	return h.config.Exchange(ctx, code)
 }
 
+func (h *OAuthHandler) Client(ctx context.Context, token *oauth2.Token) *http.Client {
+	return h.config.Client(ctx, token)
+}
+
 func (h *OAuthHandler) RefreshToken(ctx context.Context, token *oauth2.Token) (*oauth2.Token, error) {
 	src := h.config.TokenSource(ctx, token)
 

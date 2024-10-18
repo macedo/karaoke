@@ -2,11 +2,10 @@ package spotify
 
 import (
 	"context"
-	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/fatih/color"
 	"github.com/macedo/karaoke/internal/config"
 	"github.com/macedo/karaoke/spotify/auth"
 	"golang.org/x/oauth2"
@@ -16,6 +15,7 @@ type Client struct {
 	oAuthHandler  *auth.OAuthHandler
 	token         *oauth2.Token
 	logger        *log.Logger
+	http          *http.Client
 	authenticated bool
 }
 
@@ -45,44 +45,42 @@ func (c *Client) Authenticate(ctx context.Context) error {
 			return err
 		}
 
-		c.token = token
-		c.logger.Debug("got oauth credentials")
-		if err := auth.WriteCredentials(token); err != nil {
+		if err := auth.WriteCredentials(c.token); err != nil {
 			return err
 		}
 		c.logger.Debug("saved credentials to disk")
+
+		c.token = token
+		c.logger.Debug("got oauth credentials")
+	} else {
+		now := time.Now()
+		if now.After(c.token.Expiry) {
+			c.logger.Debug("token expired", "expiry", c.token.Expiry)
+
+			newToken, err := c.oAuthHandler.RefreshToken(ctx, c.token)
+			if err != nil {
+				c.logger.Info("saved credentials expired, we need to reauthenticate..", "error", err)
+				c.authenticated = false
+
+				return nil
+			}
+
+			if err := auth.WriteCredentials(c.token); err != nil {
+				return err
+			}
+			c.logger.Debug("saved credentials to disk")
+
+			c.token = newToken
+			c.logger.Debug("refreshed oauth credentials using the refresh token", "expiry", newToken.Expiry)
+		}
 
 		c.authenticated = true
 
-		fmt.Println(color.GreenString("Authenticated"))
-
-		return nil
-	}
-
-	now := time.Now()
-	if now.After(c.token.Expiry) {
-		c.logger.Debug("token expired", "expiry", c.token.Expiry)
-
-		newToken, err := c.oAuthHandler.RefreshToken(ctx, c.token)
-		if err != nil {
-			c.logger.Info("saved credentials expired, we need to reauthenticate..", "error", err)
-			c.authenticated = false
-
-			return nil
-		}
-
-		c.token = newToken
-		c.logger.Debug("refreshed oauth credentials using the refresh token", "expiry", newToken.Expiry)
-
-		if err := auth.WriteCredentials(newToken); err != nil {
-			return err
-		}
-		c.logger.Debug("saved credentials to disk")
+		c.logger.Info("authenticated")
 	}
 
 	c.authenticated = true
-
-	fmt.Println(color.GreenString("Authenticated"))
+	c.http = c.oAuthHandler.Client(ctx, c.token)
 
 	return nil
 }
